@@ -24,12 +24,12 @@ def key_for_name(name):
 
 
 class HotQueue(object):
-    
+
     """Simple FIFO message queue stored in a Redis list. Example:
 
     >>> from hotqueue import HotQueue
     >>> queue = HotQueue("myqueue", host="localhost", port=6379, db=0)
-    
+
     :param name: name of the queue
     :param serializer: the class or module to serialize msgs with, must have
         methods or functions named ``dumps`` and ``loads``,
@@ -39,33 +39,33 @@ class HotQueue(object):
     :param kwargs: additional kwargs to pass to :class:`Redis`, most commonly
         :attr:`host`, :attr:`port`, :attr:`db`
     """
-    
+
     def __init__(self, name, serializer=pickle, **kwargs):
         self.name = name
         self.serializer = serializer
-        self.__redis = Redis(**kwargs)
-    
+        self._redis = Redis(**kwargs)
+
     def __len__(self):
         return self.__redis.llen(self.key)
-    
+
     @property
     def key(self):
         """Return the key name used to store this queue in Redis."""
         return key_for_name(self.name)
-    
+
     def clear(self):
         """Clear the queue of all messages, deleting the Redis key."""
         self.__redis.delete(self.key)
-    
+
     def consume(self, **kwargs):
         """Return a generator that yields whenever a message is waiting in the
         queue. Will block otherwise. Example:
-        
+
         >>> for msg in queue.consume(timeout=1):
         ...     print msg
         my message
         another message
-        
+
         :param kwargs: any arguments that :meth:`~hotqueue.HotQueue.get` can
             accept (:attr:`block` will default to ``True`` if not given)
         """
@@ -78,15 +78,15 @@ class HotQueue(object):
                 yield msg
         except KeyboardInterrupt:
             print; return
-    
+
     def get(self, block=False, timeout=None):
         """Return a message from the queue. Example:
-    
+
         >>> queue.get()
         'my message'
         >>> queue.get()
         'another message'
-        
+
         :param block: whether or not to wait until a msg is available in
             the queue before returning; ``False`` by default
         :param timeout: when using :attr:`block`, if no msg is available
@@ -103,41 +103,41 @@ class HotQueue(object):
         if msg is not None and self.serializer is not None:
             msg = self.serializer.loads(msg)
         return msg
-    
+
     def put(self, *msgs):
         """Put one or more messages onto the queue. Example:
-        
+
         >>> queue.put("my message")
         >>> queue.put("another message")
-        
+
         To put messages onto the queue in bulk, which can be significantly
         faster if you have a large number of messages:
-        
+
         >>> queue.put("my message", "another message", "third message")
         """
         if self.serializer is not None:
             msgs = map(self.serializer.dumps, msgs)
         self.__redis.rpush(self.key, *msgs)
-    
+
     def worker(self, *args, **kwargs):
         """Decorator for using a function as a queue worker. Example:
-        
+
         >>> @queue.worker(timeout=1)
         ... def printer(msg):
         ...     print msg
         >>> printer()
         my message
         another message
-        
+
         You can also use it without passing any keyword arguments:
-        
+
         >>> @queue.worker
         ... def printer(msg):
         ...     print msg
         >>> printer()
         my message
         another message
-        
+
         :param kwargs: any arguments that :meth:`~hotqueue.HotQueue.get` can
             accept (:attr:`block` will default to ``True`` if not given)
         """
