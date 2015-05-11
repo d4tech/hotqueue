@@ -46,7 +46,7 @@ class HotQueue(object):
         self._redis = Redis(**kwargs)
 
     def __len__(self):
-        return self.__redis.llen(self.key)
+        return self._redis.llen(self.key)
 
     @property
     def key(self):
@@ -55,7 +55,7 @@ class HotQueue(object):
 
     def clear(self):
         """Clear the queue of all messages, deleting the Redis key."""
-        self.__redis.delete(self.key)
+        self._redis.delete(self.key)
 
     def consume(self, **kwargs):
         """Return a generator that yields whenever a message is waiting in the
@@ -95,11 +95,11 @@ class HotQueue(object):
         if block:
             if timeout is None:
                 timeout = 0
-            msg = self.__redis.blpop(self.key, timeout=timeout)
+            msg = self._redis.blpop(self.key, timeout=timeout)
             if msg is not None:
                 msg = msg[1]
         else:
-            msg = self.__redis.lpop(self.key)
+            msg = self._redis.lpop(self.key)
         if msg is not None and self.serializer is not None:
             msg = self.serializer.loads(msg)
         return msg
@@ -117,7 +117,7 @@ class HotQueue(object):
         """
         if self.serializer is not None:
             msgs = map(self.serializer.dumps, msgs)
-        self.__redis.rpush(self.key, *msgs)
+        self._redis.rpush(self.key, *msgs)
 
     def worker(self, *args, **kwargs):
         """Decorator for using a function as a queue worker. Example:
